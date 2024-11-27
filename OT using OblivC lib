@@ -1,0 +1,50 @@
+#include <obliv.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+
+// Define bit length for x and y
+#define K 32
+
+// Structure to hold protocol input/output
+typedef struct {
+    obliv int x;   // Alice's multiplicative term
+    obliv int y;   // Bob's multiplicative term
+    obliv int U;   // Alice's additive share
+    obliv int V;   // Bob's additive share
+} ProtocolIO;
+
+// Function to perform correlated OT for one bit
+void obliviousTransfer(ProtocolIO* io, int bitIndex) {
+    obliv int Ui = rand() % (1 << K);  // Random scalar Ui 
+
+    // m0 and m1 are correlated: m1 = m0 + x
+    obliv int m0 = Ui;
+    obliv int m1 = Ui + io->x;
+
+    // Extract the ith bit of y 
+    obliv int yi_bit = (io->y >> bitIndex) & 1;
+
+    // Select mc based on yi_bit
+    obliv int mc = condSelect(yi_bit, m1, m0);
+
+    // Update additive shares
+    io->U -= (1 << bitIndex) * m0;  // Weighted sum of Ui
+    io->V += (1 << bitIndex) * mc;  // Weighted sum of mc
+}
+
+// Function to calculate additive shares securely
+void multiplyAndShare(void* args) {
+    ProtocolIO* io = (ProtocolIO*)args;
+
+    io->U = 0;  // Initialize Alice's additive share
+    io->V = 0;  // Initialize Bob's additive share
+
+    // Perform K correlated OTs for each bit
+    for (int i = 0; i < K; ++i) {
+        obliviousTransfer(io, i);
+    }
+
+    // Add final correction term: V = -U + x * y
+    io->V += io->x * io->y;
+}
