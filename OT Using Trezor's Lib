@@ -1,0 +1,79 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+#include <assert.h>
+#include <trezor-crypto/ecdsa.h>
+
+#define MAX_BITS 32 
+const long long p = 1.15e+77;
+
+// structure for curve points
+typedef struct {
+    long long x; // X coordinate
+    long long y; // Y coordinate
+} curve_point;
+
+// structure for the elliptic curve parameters
+typedef struct {
+    long long prime; // The finite field
+    curve_point G;   // The base point
+} ecdsa_curve;
+
+// Structure to hold both additive shares
+typedef struct {
+    curve_point U; // Alice's additive share
+    curve_point V; // Bob's additive share
+} additive_shares;
+
+// Function for point addition and multiplication from ecdsa.h lib
+void point_add(const ecdsa_curve *curve, const curve_point *p1, const curve_point *p2);
+void point_multiply(const ecdsa_curve *curve, const long long k, const curve_point *p);
+
+// Function to check if a number is within the finite field and positive
+int is_valid_infinite_field(long long num) {
+    return (num > 0 && num < p); 
+}
+
+// Function to perform the Multiplicative to Additive (MtA) protocol using elliptic curve operations
+additive_shares multiplicative_to_additive(long long x, long long y, const ecdsa_curve *curve) {
+    
+    additive_shares shares;
+    &shares.U=point_multiply(curve, x, &curve->G); // Calculate U by multiplying x with the base point G
+    &shares.V=point_multiply(curve, y, &curve->G); // Calculate V by multiplying y with the base point G
+    
+    return shares;
+}
+
+int main() {
+    
+    // Initialize elliptic curve parameters for secp256k1
+    ecdsa_curve secp256k1 = {
+        .prime = p,
+        .G = { .x = 0x79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798,
+               .y = 0x483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8 }
+    };
+
+    // Input multiplicative shares
+    long long x, y;
+
+    printf("Enter Alice's multiplicative term x: ", p);
+    if (scanf("%lld", &x) != 1 || !is_valid_infinite_field(x)) { 
+        fprintf(stderr, "Invalid input,x should lie in [0, %lld).\n", p);
+        return EXIT_FAILURE;
+    }
+
+    printf("Enter Bob's multiplicative term y: ", p);
+    if (scanf("%lld", &y) != 1 || !is_valid_infinite_field(y)) { 
+        fprintf(stderr, "Invalid input,y should lie in [0, %lld).\n", p);
+        return EXIT_FAILURE;
+    }
+
+    // Output additive shares
+    curve_point U, V; // Alice's and Bob's additive shares as points on the curve
+    additive_shares shares=multiplicative_to_additive(x, y, &secp256k1); // compute additive shares
+
+    printf("Alice's additive share U: (%lld, %lld)\n", shares.U.x, shares.U.y);
+    printf("Bob's additive share V: (%lld, %lld)\n", shares.V.x, shares.V.y);   
+    
+    return EXIT_SUCCESS;
+}
