@@ -1,0 +1,93 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+
+#define MAX_BITS 32 // maximum number of bits for the multiplicative terms
+const long long p = 1.15e77; // value of p for the secp256k1 elliptic curve
+ 
+
+// Function to check if a number is within the finite field
+int is_valid(long long num) {
+    return (num > 0 && num < p);
+}
+
+// Function to generate an array of random scalars
+void generate_random_scalars(long long *scalars, int count) {
+    for (int i = 0; i < count; i++) {
+        scalars[i] = rand() % p;
+    }
+}
+
+// Function to perform the Multiplicative to Additive (MtA) protocol
+void multiplicative_to_additive(long long x, long long y, long long *U, long long *V) {
+    
+    long long U_bits[MAX_BITS];
+    long long m_bits[MAX_BITS];
+
+    // Generating random scalars
+    generate_random_scalars(U_bits, MAX_BITS);
+
+    // Performing OTs for each bit
+    for (int i = 0; i < MAX_BITS; i++) {
+        int yi = (y >> i) & 1; // Getting the ith bit of y
+        if (yi == 0) {
+            m_bits[i] = U_bits[i]; // gives m0
+        } else {
+            m_bits[i] = (U_bits[i] + ((x >> i) & 1)) % p; // gives m1 mod p
+        }
+    }
+
+    // Additive share U
+    *U = 0;
+    for (int i = 0; i < MAX_BITS; i++) {
+        *U -= (U_bits[i] << i);
+    }
+
+    // Additive share V
+    *V = 0;
+    for (int i = 0; i < MAX_BITS; i++) {
+        int yi = (y >> i) & 1; // Get the ith bit of y
+        if (yi == 1) {
+            *V += (m_bits[i] << i);
+        }
+    }
+
+    // Calculating V
+    *V += (*U + x * y); // V = -U + x * y
+}
+
+int main() {
+    
+    // Input multiplicative shares x,y
+    long long x, y;
+
+    printf("Enter Alice's multiplicative term x: ", p);
+    if (scanf("%lld", &x) != 1 || !is_valid(x)) {
+        fprintf(stderr, "Invalid input, x should lie in [0, %lld).\n", p);
+        return EXIT_FAILURE;
+    }
+
+    printf("Enter Bob's multiplicative term y: ", p);
+    if (scanf("%lld", &y) != 1 || !is_valid(y)) {
+        fprintf(stderr, "Invalid input, y should lie in [0, %lld).\n", p);
+        return EXIT_FAILURE;
+    }
+
+    // additive shares U,V
+    long long U, V;
+    multiplicative_to_additive(x, y, &U, &V);
+
+    printf("Alice's additive share U: %lld\n", U);
+    printf("Bob's additive share V: %lld\n", V);
+
+    // Verification of the relation: x * y == U + V
+    printf("Verification: x * y = %lld + %lld\n", U, V);
+    
+    if ((x * y) % p == (U + V) % p) {
+        printf("The relation holds: %lld == %lld\n", (x * y) % p, (U + V) % p);
+    } else {
+        printf("The relation does not hold.\n");
+    }
+
+    return EXIT_SUCCESS;
+}
