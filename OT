@@ -3,7 +3,7 @@
 #include <time.h>
 
 #define MAX_BITS 32 // maximum number of bits for the multiplicative terms
-const long long p = 1.15e77; // value of p for the secp256k1 elliptic curve
+const long long p = 1.15e+77; // value of p for the secp256k1 elliptic curve
  
 
 // Function to check if a number is within the finite field
